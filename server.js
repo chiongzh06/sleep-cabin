@@ -6,7 +6,7 @@ import { WebSocketServer } from 'ws';
 
 const PORT = process.env.PORT || 3000;
 const MAX = +(process.env.MAX_PLAYERS || 24); // 同时在线上限（20 张床 + 几个走动的人）
-const BEDS = 20, CHAT_MAX = 30, CHAT_GAP = 3000, PER_IP = 4;
+const BEDS = 20, CHAT_MAX = 30, CHAT_GAP = 3000, PER_IP = +(process.env.PER_IP || 4);
 const BAD = ['傻逼', '操你', 'fuck', 'shit', 'nigger', 'cnm', 'sb'];
 const LINK = /(https?:|www\.|[a-z0-9-]+\.(com|net|org|cn|io|xyz|top|me|co|cc|ly|gg)\b|t\.me|discord)/i;
 
