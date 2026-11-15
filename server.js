@@ -18,6 +18,12 @@ let peak = 0, visits = 0;
 const server = http.createServer((req, res) => {
   const url = (req.url || '/').split('?')[0];
   if (url === '/healthz') { res.end('ok'); return; }
+  if (url === '/promo.mp4') {
+    const f = new URL('./public/promo.mp4', import.meta.url);
+    try { const b = fs.readFileSync(f); res.setHeader('content-type', 'video/mp4'); res.setHeader('access-control-allow-origin', '*'); res.setHeader('content-length', b.length); res.end(b); }
+    catch { res.statusCode = 404; res.end('no'); }
+    return;
+  }
   if (url === '/status') {
     res.setHeader('content-type', 'application/json');
     res.setHeader('access-control-allow-origin', '*');

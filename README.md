@@ -1,23 +1,23 @@
-# 一起睡 · 雪夜木屋
+# Sleep Cabin · 一起睡
 
-和陌生人一起在雪山极光下的木屋里睡觉的多人网页。
+**Play: https://yiqishui.onrender.com**
 
-- 打开网页即可进入，无需下载、无需注册
-- 20 张床，同时在线上限 24 人，满员自动排队
-- 可聊天（30 字以内、3 秒冷却、不能发链接）
-- 设定睡眠时间和起床闹钟，猫会随机趴在睡觉的人肚子上
+A multiplayer web room where strangers fall asleep together in a snowy log cabin under the aurora.
+一间雪山脚下的木屋，和陌生人一起躺下睡觉的多人网页。
 
-## 运行
+- 20 beds, up to 24 people online, a queue when it's full / 20 张床，满员自动排队
+- No login, no download / 免下载、免注册
+- Short chat (30 chars, 3 s cooldown, no links) / 可聊天（30 字以内、3 秒冷却、不能发链接）
+- Set a sleep timer and an optional wake-up alarm; a cat naps on sleepers' bellies / 睡眠时间 + 起床闹钟，猫会趴在睡觉的人肚子上
+
+## Run
 ```
 npm install
-npm start   # 默认端口 3000，可用 PORT 环境变量修改
+npm start   # PORT env var, default 3000
 ```
-- `/` 网页
-- `/ws` 多人同步 WebSocket
-- `/status` 在线人数统计（JSON）
-- `MAX_PLAYERS` 环境变量可修改在线上限
+- `/` page · `/ws` WebSocket · `/status` stats JSON · `MAX_PLAYERS` env var changes the cap
 
-## 部署
-仓库内含 `render.yaml`，可在 Render 一键部署（免费方案）。
+## Deploy
+`render.yaml` is included for a one-click free deploy on Render.
 
-素材：人物与家具来自 KayKit（CC0），远景由 Blender 程序生成。
+Assets: characters and furniture by KayKit (CC0); the mountain backdrop is procedurally rendered in Blender.
