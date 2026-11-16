@@ -4043,7 +4043,7 @@ function clickAt(e){if(!me)return;
  else{pend=-1;const p=new T.Vector3();if(ray.ray.intersectPlane(new T.Plane(new T.Vector3(0,1,0),0),p))go(p.x,p.z)}}
 let yaw=0,pitch=.35,dist=7,pd=null,lastPub=0;const camT=new T.Vector3(),keys={},el=R.domElement;
 el.onpointerdown=e=>{pd={x:e.clientX,y:e.clientY,m:0};el.setPointerCapture&&el.setPointerCapture(e.pointerId)};
-el.onpointermove=e=>{if(!pd)return;const dx=e.clientX-pd.x,dy=e.clientY-pd.y;if(pd.m||Math.hypot(dx,dy)>5){pd.m=1;yaw-=dx*.006;pitch=Math.max(-1.35,Math.min(1.4,pitch+dy*.005));pd.x=e.clientX;pd.y=e.clientY}};
+el.onpointermove=e=>{if(!pd)return;const dx=e.clientX-pd.x,dy=e.clientY-pd.y,k=e.pointerType==='touch'?2.2:1;if(pd.m||Math.hypot(dx,dy)>5){pd.m=1;yaw-=dx*.006*k;pitch=Math.max(-1.35,Math.min(1.4,pitch+dy*.005*k));pd.x=e.clientX;pd.y=e.clientY}};
 el.onpointerup=e=>{if(pd&&!pd.m)clickAt(e);pd=null};
 addEventListener('wheel',e=>{dist=Math.max(.7,Math.min(16,dist+e.deltaY*.01))});
 addEventListener('keydown',e=>{if(/INPUT|SELECT/.test(e.target.tagName))return;keys[e.code]=1});addEventListener('keyup',e=>{keys[e.code]=0});
