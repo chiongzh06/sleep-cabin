@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#1b1416">
+<title>线上打小人 · 打完晦气全消</title>
+<meta name="description" content="写下让你烦的人或事，拿拖鞋狠狠打。全站一起打，打完晦气全消。免注册，名字只留在你手机上。">
+<meta property="og:title" content="线上打小人 · 打完晦气全消">
+<meta property="og:description" content="写下让你烦的人或事，拿拖鞋狠狠打。全站一起打。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E🩴%3C/text%3E%3C/svg%3E">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:#1b1416;color:#f4ead2;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+canvas{position:fixed;left:0;top:0;width:100%;height:100%;display:block}
+.top{position:fixed;top:0;left:0;right:0;padding:calc(10px + env(safe-area-inset-top)) 14px 8px;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.row{display:flex;justify-content:space-between;align-items:center;font-size:13px;opacity:.85}
+.row b{font-weight:700;color:#ffd27a}
+h1{margin:0;font-size:20px;letter-spacing:2px}
+.bar{height:8px;background:#3a2a2e;border-radius:6px;overflow:hidden}
+.bar i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#7a1f2b,#ff5a4d);transition:width .15s}
+.bot{position:fixed;left:0;right:0;bottom:0;padding:10px 12px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(transparent,#1b1416 35%);display:flex;flex-direction:column;gap:8px}
+.chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chips button{flex:none;border:1px solid #6b4a50;background:#2a1d21;color:#f4ead2;border-radius:18px;padding:7px 14px;font-size:14px}
+.chips button.on{background:#c0392b;border-color:#c0392b}
+.inp{display:flex;gap:8px}
+.inp input{flex:1;min-width:0;border:1px solid #6b4a50;background:#2a1d21;color:#f4ead2;border-radius:10px;padding:9px 12px;font-size:14px;outline:none;user-select:text;-webkit-user-select:text}
+.inp button{border:0;background:#ffd27a;color:#2a1d21;border-radius:10px;padding:0 16px;font-weight:700;font-size:14px}
+.note{font-size:11px;opacity:.55;text-align:center}
+.note a{color:inherit;margin:0 4px}
+#snd{pointer-events:auto;border:0;background:#2a1d21;color:#f4ead2;border-radius:50%;width:34px;height:34px;font-size:16px}
+#win{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(10,6,8,.72)}
+#win.show{display:flex}
+.card{background:#2a1d21;border:1px solid #6b4a50;border-radius:18px;padding:22px 20px;width:min(86vw,340px);text-align:center}
+.card h2{margin:0 0 6px;font-size:22px}
+.card p{margin:4px 0 16px;opacity:.8;font-size:14px;line-height:1.5}
+.card .b{display:flex;gap:10px}
+.card button{flex:1;border:0;border-radius:12px;padding:11px;font-size:15px;font-weight:700}
+.card .p{background:#ffd27a;color:#2a1d21}.card .s{background:#3a2a2e;color:#f4ead2}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="top">
+  <div class="row" style="opacity:1"><h1>线上打小人</h1><button id="snd" aria-label="声音">🔊</button></div>
+  <div class="row"><span>全站今天已打 <b id="today">0</b> 下</span><span>此刻 <b id="on">1</b> 人在打</span></div>
+  <div class="bar"><i id="hp"></i></div>
+  <div class="row"><span>晦气值</span><span id="mine">你今天打了 0 下</span></div>
+</div>
+<div class="bot">
+  <div class="chips" id="chips"></div>
+  <div class="inp"><input id="name" maxlength="8" placeholder="写下想打的人或事（最多8字）"><button id="go">换</button></div>
+  <div class="note">名字只留在你的手机上，不会上传 · <a href="/tree">🌳一起养树</a><a href="/offwork">⏰下班倒计时</a><a href="/">😴雪夜木屋</a></div>
+</div>
+<div id="win"><div class="card"><h2>晦气已散 ✨</h2><p id="wmsg">今天一定顺。</p><div class="b"><button class="s" id="share">分享</button><button class="p" id="again">再打一个</button></div></div></div>
+<script>
+(()=>{
+const $=id=>document.getElementById(id);
+const cv=$('c'),g=cv.getContext('2d');
+let W,H,dpr;
+function rs(){dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;g.setTransform(dpr,0,0,dpr,0,0)}
+addEventListener('resize',rs);rs();
+
+// ---------- 状态 ----------
+const MAXHP=30,TARGETS=['老板','甲方','同事','前任','周一','闹钟','烦恼'];
+const dk=()=>new Date().toDateString();
+let label=localStorage.xr_label||'老板',hp=MAXHP,shake=0,sq=0,deadAt=0,bruises=[],fx=[],words=[],mute=localStorage.xr_mute==='1';
+let mine=+(localStorage.xr_day===dk()?localStorage.xr_n||0:0);
+let srvToday=0,pending=0,sentAhead=0;
+$('snd').textContent=mute?'🔇':'🔊';
+function setLabel(t){t=(t||'').trim().slice(0,8)||'老板';label=t;localStorage.xr_label=t;$('name').value=t;[...$('chips').children].forEach(b=>b.classList.toggle('on',b.textContent===t))}
+TARGETS.forEach(t=>{const b=document.createElement('button');b.textContent=t;b.onclick=()=>{setLabel(t);reset()};$('chips').appendChild(b)});
+$('go').onclick=()=>{setLabel($('name').value);reset()};
+$('name').addEventListener('keydown',e=>{if(e.key==='Enter'){setLabel($('name').value);reset();$('name').blur()}});
+setLabel(label);
+function reset(){hp=MAXHP;bruises=[];deadAt=0;$('win').classList.remove('show');upd()}
+function upd(){$('hp').style.width=(hp/MAXHP*100)+'%';$('mine').textContent='你今天打了 '+mine+' 下';$('today').textContent=(srvToday+pending+sentAhead).toLocaleString()}
+
+// ---------- 声音 ----------
+let ac;
+function thump(){
+  if(mute)return;
+  try{
+    ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+    if(ac.state==='suspended')ac.resume();
+    const t=ac.currentTime,o=ac.createOscillator(),gn=ac.createGain();
+    o.frequency.setValueAtTime(220,t);o.frequency.exponentialRampToValueAtTime(55,t+.12);
+    gn.gain.setValueAtTime(.7,t);gn.gain.exponentialRampToValueAtTime(.001,t+.16);
+    o.connect(gn).connect(ac.destination);o.start(t);o.stop(t+.17);
+    const n=ac.createBuffer(1,ac.sampleRate*.06,ac.sampleRate),d=n.getChannelData(0);
+    for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*(1-i/d.length);
+    const s=ac.createBufferSource(),f=ac.createBiquadFilter(),g2=ac.createGain();
+    s.buffer=n;f.type='lowpass';f.frequency.value=1800;g2.gain.value=.5;
+    s.connect(f).connect(g2).connect(ac.destination);s.start(t);
+  }catch(e){}
+}
+$('snd').onclick=e=>{e.stopPropagation();mute=!mute;localStorage.xr_mute=mute?'1':'0';$('snd').textContent=mute?'🔇':'🔊'};
+
+// ---------- 打 ----------
+const WORDS=['啪！','呸！','去你的！','打！','晦气走！','烦死了！','给我散！','叫你烦！'];
+function hit(x,y){
+  if(hp<=0)return;
+  hp--;mine++;pending++;
+  localStorage.xr_day=dk();localStorage.xr_n=mine;
+  shake=1;sq=1;
+  const now=performance.now();
+  fx.push({x,y,t:now});
+  words.push({x:x+(Math.random()*60-30),y:y-30,t:now,w:WORDS[Math.random()*WORDS.length|0],r:Math.random()*.4-.2});
+  for(let i=0;i<5;i++)words.push({x:x+(Math.random()*50-25),y:y+(Math.random()*20-10),t:now,w:'',vx:Math.random()*2-1,vy:-(1+Math.random()*1.5),s:5+Math.random()*7,p:1});
+  if(bruises.length<14&&Math.random()<.7)bruises.push({x:(Math.random()*2-1)*20,y:-30-Math.random()*50,r:3+Math.random()*5,c:Math.random()<.5?'rgba(120,40,90,.6)':'rgba(190,40,40,.55)'});
+  thump();navigator.vibrate&&navigator.vibrate(14);
+  if(hp<=0){deadAt=now;$('wmsg').textContent='「'+label+'」已经被你打倒，今天一定顺。'}
+  upd();
+}
+cv.addEventListener('pointerdown',e=>{e.preventDefault();hit(e.clientX,e.clientY)});
+$('again').onclick=reset;
+$('share').onclick=async()=>{
+  const text='我刚在网上把「'+label+'」打倒了，晦气全消 👉 '+location.href;
+  try{if(navigator.share){await navigator.share({title:'线上打小人',text:'我刚在网上把「'+label+'」打倒了，晦气全消',url:location.href});return}}catch(e){return}
+  try{await navigator.clipboard.writeText(text);$('share').textContent='已复制'}catch(e){prompt('复制这段话去分享：',text)}
+};
+
+// ---------- 画 ----------
+function slipper(x,y,p){
+  const e=p<.35?1-Math.pow(1-p/.35,3):1,a=p<.35?-.8+e*.95:.15,lift=p>.6?(p-.6)/.4:0;
+  g.save();g.translate(x,y-(1-e)*150-lift*40);g.rotate(a);g.globalAlpha=1-Math.max(0,(p-.65)/.35);
+  g.fillStyle='#2aa5a0';g.beginPath();g.ellipse(0,18,30,52,0,0,7);g.fill();
+  g.fillStyle='#1b7b77';g.beginPath();g.ellipse(0,22,25,46,0,0,7);g.fill();
+  g.strokeStyle='#f4f4f4';g.lineWidth=13;g.lineCap='round';g.beginPath();g.moveTo(-23,-12);g.quadraticCurveTo(0,-34,23,-12);g.stroke();
+  g.restore();
+}
+function doll(cx,cy,u,now){
+  const dead=deadAt?Math.min(1,(now-deadAt)/900):0;
+  g.save();g.translate(cx+Math.sin(now/22)*shake*5*u/1.4,cy+60*u);
+  g.rotate(dead*1.35+Math.sin(now/30)*shake*.03);g.translate(dead*30*u,0);
+  g.scale(1+.1*sq,1-.12*sq);g.globalAlpha=1-dead*.55;
+  g.lineWidth=Math.max(2,u*1.6);g.lineJoin='round';g.strokeStyle='#3b2f2f';g.fillStyle='#f4ead2';
+  // 腿
+  for(const s of[-1,1]){g.beginPath();g.rect(s>0?4*u:-16*u,-32*u,12*u,32*u);g.fill();g.stroke()}
+  // 身体+手
+  g.beginPath();g.moveTo(-22*u,-82*u);g.lineTo(22*u,-82*u);g.lineTo(48*u,-58*u);g.lineTo(40*u,-52*u);g.lineTo(27*u,-60*u);g.lineTo(27*u,-30*u);g.lineTo(-27*u,-30*u);g.lineTo(-27*u,-60*u);g.lineTo(-40*u,-52*u);g.lineTo(-48*u,-58*u);g.closePath();g.fill();g.stroke();
+  // 头
+  g.beginPath();g.arc(0,-100*u,18*u,0,7);g.fill();g.stroke();
+  // 脸
+  const x=hp<=MAXHP*.2;g.lineWidth=Math.max(2,u*1.8);g.lineCap='round';
+  for(const s of[-1,1]){
+    g.beginPath();
+    if(x||dead){g.moveTo(s*9*u-4*u,-106*u);g.lineTo(s*9*u+4*u,-98*u);g.moveTo(s*9*u+4*u,-106*u);g.lineTo(s*9*u-4*u,-98*u);g.stroke()}
+    else{g.fillStyle='#3b2f2f';g.arc(s*8*u,-102*u,2.4*u,0,7);g.fill();g.beginPath();g.moveTo(s*14*u,-111*u);g.lineTo(s*4*u,-107*u);g.stroke()}
+  }
+  g.beginPath();if(x||dead){g.arc(0,-90*u,5*u,Math.PI,0)}else{g.moveTo(-7*u,-91*u);for(let i=1;i<=4;i++)g.lineTo(-7*u+i*3.5*u,-91*u+(i%2?-3:0)*u)}g.stroke();
+  // 淤青
+  for(const b of bruises){g.fillStyle=b.c;g.beginPath();g.arc(b.x*u,b.y*u,b.r*u,0,7);g.fill()}
+  // 吊牌
+  g.font='700 '+Math.round(16*u)+'px system-ui,"PingFang SC","Microsoft YaHei",sans-serif';
+  const tw=g.measureText(label).width+22*u;
+  g.fillStyle='#c0392b';g.strokeStyle='#3b2f2f';g.lineWidth=Math.max(2,u*1.4);
+  g.beginPath();g.roundRect?g.roundRect(-tw/2,-150*u,tw,26*u,6*u):g.rect(-tw/2,-150*u,tw,26*u);g.fill();g.stroke();
+  g.beginPath();g.moveTo(0,-124*u);g.lineTo(0,-118*u);g.stroke();
+  g.fillStyle='#fff';g.textAlign='center';g.textBaseline='middle';g.fillText(label,0,-136.5*u);
+  g.restore();
+}
+function frame(now){
+  requestAnimationFrame(frame);
+  shake*=.88;sq*=.8;
+  const gr=g.createRadialGradient(W/2,H*.42,20,W/2,H*.42,Math.max(W,H)*.7);gr.addColorStop(0,'#3a2327');gr.addColorStop(1,'#140d0f');
+  g.fillStyle=gr;g.fillRect(0,0,W,H);
+  const u=Math.min(W/130,H*.5/165);
+  doll(W/2,H*.43,u,now);
+  fx=fx.filter(f=>now-f.t<320);for(const f of fx)slipper(f.x,f.y,(now-f.t)/320);
+  words=words.filter(w=>now-w.t<(w.p?700:800));
+  for(const w of words){
+    const p=(now-w.t)/(w.p?700:800);g.globalAlpha=1-p;
+    if(w.p){g.fillStyle='#000';g.beginPath();g.arc(w.x+w.vx*p*60,w.y+w.vy*p*60,w.s*(1+p),0,7);g.fill()}
+    else{g.save();g.translate(w.x,w.y-p*50);g.rotate(w.r);g.font='800 '+Math.round(26+10*(1-p))+'px system-ui,"PingFang SC",sans-serif';g.textAlign='center';g.fillStyle='#ffd27a';g.strokeStyle='#5a1a1a';g.lineWidth=4;g.strokeText(w.w,0,0);g.fillText(w.w,0,0);g.restore()}
+    g.globalAlpha=1;
+  }
+  if(deadAt&&now-deadAt>1100&&!$('win').classList.contains('show'))$('win').classList.add('show');
+}
+requestAnimationFrame(frame);
+upd();
+
+// ---------- 全站计数 ----------
+let ws,retry=0;
+function conn(){
+  try{ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/lab-ws?room=xiaoren')}catch(e){return}
+  ws.onopen=()=>{retry=0};
+  ws.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch{return}if(m.t==='s'){srvToday=m.today;sentAhead=0;$('on').textContent=m.on;upd()}};
+  ws.onclose=()=>{setTimeout(conn,Math.min(15000,1000*2**retry++))};
+}
+conn();
+setInterval(()=>{if(pending&&ws&&ws.readyState===1){const n=Math.min(pending,5);ws.send(JSON.stringify({t:'hit',n}));pending-=n;sentAhead+=n}},300);
+})();
+</script>
+</body>
+</html>

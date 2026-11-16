@@ -10,6 +10,10 @@ A multiplayer web room where strangers fall asleep together in a snowy log cabin
 - Short chat (30 chars, 3 s cooldown, no links) / 可聊天（30 字以内、3 秒冷却、不能发链接）
 - Set a sleep timer and an optional wake-up alarm; a cat naps on sleepers' bellies / 睡眠时间 + 起床闹钟，猫会趴在睡觉的人肚子上
 
+## Lab pages / 小实验
+- `/xiaoren` 线上打小人 · `/tree` 一起养树 · `/offwork` 下班倒计时（全站实时计数，WebSocket `/lab-ws?room=…`）
+- 访问量：`/status` 里的 `lab.today.pv`（浏览量）和 `lab.today.uv`（独立访客），按东八区每天统计；数据存在 `data/lab.json`，Render 免费版重新部署后会清零
+
 ## Run
 ```
 npm install

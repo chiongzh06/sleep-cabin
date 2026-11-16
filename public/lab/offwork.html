@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0f1b33">
+<title>⏰ 距离下班 · 下班倒计时</title>
+<meta name="description" content="打工人的下班倒计时。点一下「我撑住了」，看今天全站有多少人和你一起撑着。免注册。">
+<meta property="og:title" content="下班倒计时 · 今天有多少人和你一起撑着">
+<meta property="og:description" content="设置你的下班时间，倒计时一目了然。点一下「我撑住了」，和全站打工人一起撑。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E⏰%3C/text%3E%3C/svg%3E">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;background:#0f1b33;color:#eaf0ff;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;touch-action:manipulation}
+body{min-height:100dvh;display:flex;flex-direction:column;align-items:center;padding:calc(22px + env(safe-area-inset-top)) 18px calc(18px + env(safe-area-inset-bottom));background:radial-gradient(120% 80% at 50% 0,#1e3463 0,#0f1b33 60%)}
+h1{margin:0;font-size:18px;letter-spacing:3px;opacity:.9}
+#state{margin-top:26px;font-size:16px;opacity:.85;text-align:center;min-height:24px}
+#clock{margin:10px 0 4px;font-size:clamp(46px,16vw,84px);font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:2px;text-align:center;color:#fff}
+#sub{font-size:14px;opacity:.7;text-align:center;min-height:20px}
+.bar{width:min(420px,100%);height:12px;margin:22px 0 6px;background:#223559;border-radius:8px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ffb347,#ff6b6b);transition:width 1s linear}
+#pct{font-size:12px;opacity:.65}
+#quote{margin:22px 0 4px;font-size:15px;text-align:center;line-height:1.6;min-height:48px;max-width:380px;color:#ffd9a0}
+#hold{margin-top:14px;border:0;border-radius:18px;padding:16px 38px;font-size:19px;font-weight:800;background:linear-gradient(135deg,#ffb347,#ff7a59);color:#2a1408;box-shadow:0 8px 24px rgba(255,122,89,.35)}
+#hold:active{transform:scale(.97)}
+#hold[disabled]{background:#2c3f66;color:#9fb2dd;box-shadow:none}
+.stat{margin-top:16px;font-size:14px;opacity:.9;text-align:center;line-height:1.8}
+.stat b{color:#ffd27a;font-size:16px}
+.set{margin-top:auto;padding-top:26px;width:min(420px,100%)}
+.set summary{font-size:13px;opacity:.6;cursor:pointer;text-align:center;list-style:none}
+.set .f{display:flex;gap:12px;justify-content:center;margin-top:12px;font-size:14px}
+.set label{display:flex;flex-direction:column;gap:6px;align-items:center}
+.set input{background:#1a2b4f;color:#fff;border:1px solid #38507f;border-radius:10px;padding:8px 10px;font-size:16px}
+.links{margin-top:16px;font-size:11px;opacity:.6;text-align:center}
+.links a{color:inherit;margin:0 5px}
+#fw{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+#fw span{position:absolute;top:-30px;font-size:26px;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(110vh) rotate(360deg);opacity:.9}}
+</style>
+</head>
+<body>
+<h1>⏰ 下班倒计时</h1>
+<div id="state">…</div>
+<div id="clock">--:--:--</div>
+<div id="sub"></div>
+<div class="bar"><i id="bar"></i></div>
+<div id="pct"></div>
+<div id="quote"></div>
+<button id="hold">我撑住了 💪</button>
+<div class="stat">今天全站已有 <b id="today">0</b> 人撑住了<br>此刻 <b id="on">1</b> 人和你一起撑着</div>
+<details class="set"><summary>设置上下班时间</summary>
+  <div class="f"><label>上班<input type="time" id="st" value="09:00"></label><label>下班<input type="time" id="en" value="18:00"></label></div>
+</details>
+<div class="links"><a href="/xiaoren">🩴线上打小人</a><a href="/tree">🌳一起养树</a><a href="/">😴雪夜木屋</a></div>
+<div id="fw"></div>
+<script>
+(()=>{
+const $=id=>document.getElementById(id);
+const pad=n=>String(n).padStart(2,'0');
+const dk=()=>new Date().toDateString();
+const load=(k,d)=>localStorage[k]||d;
+$('st').value=load('ow_st','09:00');$('en').value=load('ow_en','18:00');
+$('st').onchange=$('en').onchange=()=>{localStorage.ow_st=$('st').value;localStorage.ow_en=$('en').value;tick()};
+const at=(d,hm)=>{const[h,m]=hm.split(':').map(Number);const x=new Date(d);x.setHours(h,m,0,0);return x};
+const fmt=ms=>{ms=Math.max(0,Math.ceil(ms/1000));return pad(ms/3600|0)+':'+pad(ms/60%60|0)+':'+pad(ms%60)};
+const Q=[[.85,'才刚开始，先摸一小下鱼。'],[.6,'撑过上午就是胜利，喝口水。'],[.35,'过半了。再看一眼窗外，假装在思考。'],[.15,'快了快了，别在这时候接新活。'],[.03,'最后几分钟，电脑可以开始装作很忙地关机了。'],[0,'下班！走！']];
+let last='';
+function confetti(){const f=$('fw');for(let i=0;i<28;i++){const s=document.createElement('span');s.textContent=['🎉','✨','🎊','🥳'][i%4];s.style.left=Math.random()*100+'%';s.style.animationDuration=(2+Math.random()*2.5)+'s';s.style.animationDelay=Math.random()*.8+'s';f.appendChild(s);setTimeout(()=>s.remove(),5500)}}
+function tick(){
+  const now=new Date(),dow=now.getDay(),st=at(now,$('st').value),en=at(now,$('en').value);
+  let state,clock,sub='',pct='',frac=0,quote='';
+  if(en<=st){state='下班时间要晚于上班时间哦';clock='--:--:--'}
+  else if(dow===0||dow===6){
+    let d=1;const nx=new Date(now);nx.setDate(now.getDate()+(dow===6?2:1));const t=at(nx,$('st').value);
+    state='今天周末，不用撑 🛋️';clock=fmt(t-now);sub='距离下周一上班';quote='好好休息，周一的事周一再说。'
+  }else if(now<st){state='还没上班，再躺一会';clock=fmt(st-now);sub='距离上班';quote='今天也辛苦了（预支）。'}
+  else if(now<en){
+    state='距离下班还有';clock=fmt(en-now);frac=(now-st)/(en-st);
+    const left=1-frac;pct='今天已经撑过 '+Math.floor(frac*100)+'%';
+    quote=Q.find(q=>left>=q[0])[1];
+    const toSat=6-dow;sub=dow===5?'今天周五，熬过今天就是周末！':'距离周末还有 '+toSat+' 天';
+  }else{state='下班啦 🎉';clock='00:00:00';frac=1;pct='今天已经撑完 100%';sub=dow===5?'周末快乐！':'回家，关电脑。';quote='你今天已经很棒了。';if(last!=='end'){confetti()}}
+  last=now>=en&&dow>0&&dow<6&&en>st?'end':'';
+  $('state').textContent=state;$('clock').textContent=clock;$('sub').textContent=sub;$('pct').textContent=pct;$('quote').textContent=quote;
+  $('bar').style.width=(frac*100)+'%';
+  document.title=(now<en&&now>=st&&dow>0&&dow<6)?'⏰ 还有 '+clock:'⏰ 下班倒计时';
+}
+setInterval(tick,500);tick();
+
+// ---------- 我撑住了 ----------
+let todayN=0,on=1,sent=localStorage.ow_held===dk();
+function btn(){const b=$('hold');b.disabled=sent;b.textContent=sent?'今天已打卡，你很棒 ✅':'我撑住了 💪'}
+function show(){$('today').textContent=(todayN+(sent&&!ackd?1:0)).toLocaleString();$('on').textContent=on}
+let ackd=false;
+$('hold').onclick=()=>{if(sent)return;sent=true;localStorage.ow_held=dk();ws&&ws.readyState===1&&ws.send(JSON.stringify({t:'held'}));btn();show();confetti();navigator.vibrate&&navigator.vibrate(30)};
+btn();
+let ws,retry=0;
+function conn(){
+  try{ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/lab-ws?room=offwork')}catch(e){return}
+  ws.onopen=()=>{retry=0};
+  ws.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch{return}if(m.t==='s'){todayN=m.today;on=m.on;ackd=sent;show()}};
+  ws.onclose=()=>{setTimeout(conn,Math.min(15000,1000*2**retry++))};
+}
+conn();show();
+})();
+</script>
+</body>
+</html>

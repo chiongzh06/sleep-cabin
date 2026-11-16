@@ -3,6 +3,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import zlib from 'node:zlib';
 import { WebSocketServer } from 'ws';
+import { labHttp, labUpgrade, labStats, trackView } from './lab.js';
 
 const PORT = process.env.PORT || 3000;
 const MAX = +(process.env.MAX_PLAYERS || 24); // 同时在线上限（20 张床 + 几个走动的人）
@@ -27,18 +28,24 @@ const server = http.createServer((req, res) => {
   if (url === '/status') {
     res.setHeader('content-type', 'application/json');
     res.setHeader('access-control-allow-origin', '*');
-    res.end(JSON.stringify({ online: clients.size, max: MAX, sleeping: [...clients.values()].filter(c => c.p.b >= 0).length, peak, visits, upMin: Math.round((Date.now() - started) / 6e4) }));
+    res.end(JSON.stringify({ online: clients.size, max: MAX, sleeping: [...clients.values()].filter(c => c.p.b >= 0).length, peak, visits, upMin: Math.round((Date.now() - started) / 6e4), lab: labStats() }));
     return;
   }
+  if (labHttp(req, res, url)) return;
   if (url !== '/' && url !== '/index.html') { res.statusCode = 404; res.end('not found'); return; }
-  visits++;
+  visits++; trackView('/', req);
   res.setHeader('content-type', 'text/html; charset=utf-8');
   res.setHeader('cache-control', 'public, max-age=300');
   if (/\bgzip\b/.test(req.headers['accept-encoding'] || '')) { res.setHeader('content-encoding', 'gzip'); res.end(gz); }
   else res.end(html);
 });
 
-const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 4096 });
+const wss = new WebSocketServer({ noServer: true, maxPayload: 4096 });
+server.on('upgrade', (req, socket, head) => {
+  const p = (req.url || '').split('?')[0];
+  if (p === '/ws') wss.handleUpgrade(req, socket, head, ws => wss.emit('connection', ws, req));
+  else if (!labUpgrade(req, socket, head)) socket.destroy();
+});
 const clients = new Map(); // ws -> {id, ip, p, lastChat}
 const dirty = new Set(), left = new Set();
 let nextId = 1;

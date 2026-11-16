@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#cfe9f7">
+<title>一起养树 · 点一下，给大家的树浇水</title>
+<meta name="description" content="全世界的人一起养同一棵树。点一下屏幕就浇一次水，看它今天长到哪了。免注册。">
+<meta property="og:title" content="一起养树 · 点一下，给大家的树浇水">
+<meta property="og:description" content="全世界的人一起养同一棵树，你浇的每一滴水都算数。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E🌳%3C/text%3E%3C/svg%3E">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+canvas{position:fixed;left:0;top:0;width:100%;height:100%;display:block}
+.top{position:fixed;top:0;left:0;right:0;padding:calc(12px + env(safe-area-inset-top)) 16px 8px;pointer-events:none;color:var(--fg,#1d3b2a);text-align:center}
+h1{margin:0;font-size:19px;letter-spacing:2px}
+#stage{font-size:15px;font-weight:700;margin-top:4px}
+.bar{height:8px;background:rgba(0,0,0,.14);border-radius:6px;overflow:hidden;margin:8px auto 4px;max-width:360px}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#6bc46d,#2f9e44);transition:width .3s}
+#next{font-size:12px;opacity:.75}
+.bot{position:fixed;left:0;right:0;bottom:0;padding:10px 12px calc(14px + env(safe-area-inset-bottom));text-align:center;color:#fff;pointer-events:none;text-shadow:0 1px 3px rgba(0,0,0,.45)}
+#hint{font-size:16px;font-weight:700;margin-bottom:6px}
+.stat{font-size:13px;opacity:.95}
+.stat b{font-size:15px}
+.links{margin-top:6px;font-size:11px;opacity:.85;pointer-events:auto}
+.links a{color:#fff;margin:0 5px}
+#banner{position:fixed;left:50%;top:32%;transform:translate(-50%,-50%) scale(.8);background:rgba(255,255,255,.92);color:#1d3b2a;border-radius:16px;padding:14px 22px;font-size:20px;font-weight:800;opacity:0;pointer-events:none;transition:all .4s;text-align:center}
+#banner.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+#banner small{display:block;font-size:12px;font-weight:500;margin-top:4px;opacity:.7}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="top">
+  <h1>🌳 大家一起养的树</h1>
+  <div id="stage">种子</div>
+  <div class="bar"><i id="pg"></i></div>
+  <div id="next"></div>
+</div>
+<div id="banner"></div>
+<div class="bot">
+  <div id="hint">点屏幕任何地方，给它浇水 💧</div>
+  <div class="stat">一共被浇了 <b id="total">0</b> 次 · 今天 <b id="today">0</b> 次 · 此刻 <b id="on">1</b> 人在这儿</div>
+  <div class="links"><a href="/xiaoren">🩴线上打小人</a><a href="/offwork">⏰下班倒计时</a><a href="/">😴雪夜木屋</a></div>
+</div>
+<script>
+(()=>{
+const $=id=>document.getElementById(id);
+const cv=$('c'),g=cv.getContext('2d');
+let W,H,dpr;
+function rs(){dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;g.setTransform(dpr,0,0,dpr,0,0)}
+addEventListener('resize',rs);rs();
+
+// 阶段：累计被浇水的次数
+const TH=[0,10,50,200,1000,5000,20000],NAMES=['种子','发芽','幼苗','小树','大树','开花','结果'];
+let total=+(localStorage.tr_total||0),today=0,on=1,pending=0,sentAhead=0,lastStage=-1,mine=+(localStorage.tr_mine||0);
+const stageOf=t=>{let s=0;for(let i=0;i<TH.length;i++)if(t>=TH[i])s=i;return s};
+function ui(){
+  const t=total+pending+sentAhead,s=stageOf(t);
+  $('stage').textContent='现在是：'+NAMES[s];
+  $('total').textContent=t.toLocaleString();$('today').textContent=(today+pending+sentAhead).toLocaleString();$('on').textContent=on;
+  if(s<TH.length-1){const a=TH[s],b=TH[s+1];$('pg').style.width=((t-a)/(b-a)*100)+'%';$('next').textContent='再浇 '+(b-t).toLocaleString()+' 次，长到【'+NAMES[s+1]+'】'}
+  else{$('pg').style.width='100%';$('next').textContent='已经结满果子啦，继续浇水让它更茂盛 🍎'}
+  if(lastStage>=0&&s>lastStage)banner('长大了！进入【'+NAMES[s]+'】','是大家一起浇出来的 💧');
+  lastStage=s;
+}
+let bt;function banner(a,b){const e=$('banner');e.innerHTML=a+'<small>'+b+'</small>';e.classList.add('show');clearTimeout(bt);bt=setTimeout(()=>e.classList.remove('show'),2600)}
+
+// 随机数：保证每个人看到同一棵树
+function rng(seed){return()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+
+// 时间决定天空
+function sky(){
+  const h=new Date().getHours()+new Date().getMinutes()/60;
+  const P=[[0,'#0e1b3d','#2a3a6e','#e8eefc'],[5,'#2a3a6e','#e58f6c','#f7e3c8'],[7,'#7fc4ee','#d6efff','#1d3b2a'],[16,'#7fc4ee','#ffe6b0','#1d3b2a'],[18,'#4b5aa0','#f08a5d','#fff1dc'],[20,'#14224d','#3b4a86','#e8eefc'],[24,'#0e1b3d','#2a3a6e','#e8eefc']];
+  let i=0;while(i<P.length-2&&h>=P[i+1][0])i++;
+  const a=P[i],b=P[i+1],k=(h-a[0])/(b[0]-a[0]);
+  const mix=(x,y)=>{const c=n=>parseInt(x.slice(n,n+2),16),d=n=>parseInt(y.slice(n,n+2),16);return'rgb('+[1,3,5].map(n=>Math.round(c(n)+(d(n)-c(n))*k)).join(',')+')'};
+  return{top:mix(a[1],b[1]),bot:mix(a[2],b[2]),fg:b[3],night:h<5.5||h>19.5}
+}
+
+// ---------- 画树 ----------
+const drops=[],pops=[],ripples=[];
+const stars=Array.from({length:50},(_,i)=>{const r=rng(i+7);return[r(),r()*.5,r()*1.5+.5]});
+function tree(now,gy,stage,prog){
+  const r=rng(20240),sc=Math.min(W,H)/620;
+  const sp=stage+prog,scale=.16+.84*Math.min(1,sp/6);
+  const depth=Math.min(9,2+stage+(prog>.5?1:0));
+  const len0=Math.min(H*.145,W*.26)*scale,x0=W/2;
+  const sway=(d,x)=>Math.sin(now/1100+x*.01+d)*.018*(depth-d+1)/depth;
+  g.lineCap='round';
+  function br(x,y,len,ang,d,w){
+    const a=ang+sway(d,x),x2=x+Math.sin(a)*len,y2=y-Math.cos(a)*len;
+    g.strokeStyle=d>depth-2?'#6d4b2c':'#5a3a1f';g.lineWidth=Math.max(1,w);
+    g.beginPath();g.moveTo(x,y);g.lineTo(x2,y2);g.stroke();
+    if(d>=depth-1&&stage>=1){
+      const n=stage>=3?4:2;
+      for(let i=0;i<n;i++){
+        const lx=x2+(r()-.5)*len*1.3,ly=y2+(r()-.5)*len*1.1,lr=(7+r()*8)*sc*(.55+.45*scale);
+        g.fillStyle='hsl('+(100+r()*40)+','+(48+r()*20)+'%,'+(32+r()*16)+'%)';
+        g.beginPath();g.arc(lx,ly,lr,0,7);g.fill();
+        if(stage>=5&&r()<.5){g.fillStyle=stage>=6&&r()<.55?'#e74c3c':'#ffb7c5';g.beginPath();g.arc(lx+lr*.3,ly-lr*.2,lr*.42,0,7);g.fill()}
+      }
+    }else r(),r();
+    if(d<depth){
+      const k=d<1?2:(r()<.3?3:2);
+      for(let i=0;i<k;i++){const da=(i-(k-1)/2)*(.4+r()*.2)+(r()-.5)*.2;br(x2,y2,len*(.72+r()*.08),a*.88+da,d+1,w*.7)}
+    }
+  }
+  if(stage===0){
+    g.fillStyle='#5a3a1f';g.beginPath();g.ellipse(x0,gy-3*sc,9*sc,5*sc,0,0,7);g.fill();
+    if(prog>.4){g.strokeStyle='#4caf50';g.lineWidth=3*sc;g.beginPath();g.moveTo(x0,gy-5*sc);g.quadraticCurveTo(x0+4*sc,gy-14*sc,x0+8*sc,gy-(10+prog*12)*sc);g.stroke()}
+  }else br(x0,gy,len0,0,0,Math.max(3,len0*.16));
+}
+function frame(now){
+  requestAnimationFrame(frame);
+  const S=sky();
+  const gr=g.createLinearGradient(0,0,0,H);gr.addColorStop(0,S.top);gr.addColorStop(1,S.bot);g.fillStyle=gr;g.fillRect(0,0,W,H);
+  document.documentElement.style.setProperty('--fg',S.fg);
+  if(S.night)for(const s of stars){g.globalAlpha=.5+.5*Math.sin(now/600+s[0]*20);g.fillStyle='#fff';g.fillRect(s[0]*W,s[1]*H,s[2],s[2])}g.globalAlpha=1;
+  const gy=H*.8;
+  g.fillStyle=S.night?'#1c3b2b':'#6fbf73';g.beginPath();g.ellipse(W*.5,gy+H*.16,W*.95,H*.2,0,0,7);g.fill();
+  g.fillStyle=S.night?'#173223':'#58a85f';g.beginPath();g.ellipse(W*.15,gy+H*.2,W*.5,H*.14,0,0,7);g.fill();
+  const t=total+pending+sentAhead,s=stageOf(t),prog=s<TH.length-1?(t-TH[s])/(TH[s+1]-TH[s]):1;
+  tree(now,gy,s,prog);
+  // 水滴
+  for(let i=drops.length-1;i>=0;i--){const d=drops[i];d.vy+=.5;d.y+=d.vy;d.x+=d.vx;
+    g.fillStyle=d.own?'#8fd3ff':'rgba(160,220,255,.8)';g.beginPath();g.ellipse(d.x,d.y,3,5,0,0,7);g.fill();
+    if(d.y>=gy+8){ripples.push({x:d.x,y:gy+8,t:now});drops.splice(i,1)}}
+  for(let i=ripples.length-1;i>=0;i--){const q=ripples[i],p=(now-q.t)/500;if(p>1){ripples.splice(i,1);continue}
+    g.strokeStyle='rgba(200,235,255,'+(1-p)+')';g.lineWidth=2;g.beginPath();g.ellipse(q.x,q.y,6+p*22,2+p*6,0,0,7);g.stroke()}
+  for(let i=pops.length-1;i>=0;i--){const q=pops[i],p=(now-q.t)/800;if(p>1){pops.splice(i,1);continue}
+    g.globalAlpha=1-p;g.fillStyle='#fff';g.strokeStyle='rgba(0,0,0,.35)';g.lineWidth=3;g.font='800 18px system-ui';g.textAlign='center';g.strokeText('+1',q.x,q.y-p*40);g.fillText('+1',q.x,q.y-p*40);g.globalAlpha=1}
+}
+requestAnimationFrame(frame);
+
+// ---------- 浇水 ----------
+cv.addEventListener('pointerdown',e=>{
+  e.preventDefault();pending++;mine++;localStorage.tr_mine=mine;
+  for(let i=0;i<3;i++)drops.push({x:e.clientX+(Math.random()*30-15),y:e.clientY-20-Math.random()*20,vx:Math.random()-.5,vy:Math.random()*2,own:1});
+  pops.push({x:e.clientX,y:e.clientY,t:performance.now()});
+  navigator.vibrate&&navigator.vibrate(8);
+  if(mine===1)$('hint').textContent='你浇的每一滴水，所有人都看得到 🌱';
+  ui();
+});
+
+// ---------- 全站同步 ----------
+let ws,retry=0,synced=false;
+function conn(){
+  try{ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/lab-ws?room=tree')}catch(e){return}
+  ws.onopen=()=>{retry=0};
+  ws.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch{return}
+    if(m.t!=='s')return;
+    total=m.total;today=m.today;on=m.on;sentAhead=0;localStorage.tr_total=total;
+    if(!synced){synced=true;lastStage=stageOf(total+pending)}
+    const n=Math.min(m.d||0,12);for(let i=0;i<n;i++)setTimeout(()=>drops.push({x:Math.random()*W,y:-10,vx:Math.random()-.5,vy:Math.random()*2+1,own:0}),Math.random()*600);
+    ui()};
+  ws.onclose=()=>{setTimeout(conn,Math.min(15000,1000*2**retry++))};
+}
+conn();
+setInterval(()=>{if(pending&&ws&&ws.readyState===1){const n=Math.min(pending,5);ws.send(JSON.stringify({t:'water',n}));pending-=n;sentAhead+=n}},300);
+ui();
+})();
+</script>
+</body>
+</html>
