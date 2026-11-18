@@ -2,12 +2,14 @@
 // 一个 WebSocket（/lab-ws?room=xiaoren|tree|offwork）负责全站计数；同时统计每个页面的访问量。
 import fs from 'node:fs';
 import crypto from 'node:crypto';
+import zlib from 'node:zlib';
 import { WebSocketServer } from 'ws';
 
-const PAGES = { '/xiaoren': 'xiaoren.html', '/tree': 'tree.html', '/offwork': 'offwork.html' };
+const PAGES = { '/xiaoren': 'xiaoren.html', '/tree': 'tree.html', '/offwork': 'offwork.html', '/hall': 'hall.html' };
 const ROOMS = ['xiaoren', 'tree', 'offwork'];
 const pageCache = {};
-for (const f of Object.values(PAGES)) pageCache[f] = fs.readFileSync(new URL('./public/lab/' + f, import.meta.url));
+const gzCache = {};
+for (const f of Object.values(PAGES)) { pageCache[f] = fs.readFileSync(new URL('./public/lab/' + f, import.meta.url)); gzCache[f] = zlib.gzipSync(pageCache[f], { level: 9 }); }
 
 // ---------- 数据（存到 data/lab.json；Render 免费版重新部署后会清零） ----------
 const DATA_DIR = new URL('./data/', import.meta.url);
@@ -54,7 +56,8 @@ export function labHttp(req, res, url) {
   trackView(url, req);
   res.setHeader('content-type', 'text/html; charset=utf-8');
   res.setHeader('cache-control', 'no-cache');
-  res.end(pageCache[f]);
+  if (/\bgzip\b/.test(req.headers['accept-encoding'] || '')) { res.setHeader('content-encoding', 'gzip'); res.end(gzCache[f]); }
+  else res.end(pageCache[f]);
   return true;
 }
 
